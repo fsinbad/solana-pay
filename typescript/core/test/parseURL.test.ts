@@ -1,7 +1,7 @@
-import { PublicKey } from '@solana/web3.js';
-import BigNumber from 'bignumber.js';
-import type { TransferRequestURL } from '../src';
-import { parseURL } from '../src';
+import { describe, expect, it } from 'vitest';
+
+import type { TransferRequestURL } from '../src/index.js';
+import { parseURL } from '../src/index.js';
 
 describe('parseURL', () => {
     describe('parsing', () => {
@@ -11,14 +11,14 @@ describe('parseURL', () => {
                     'solana:mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN?amount=0.000000001&reference=82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny&label=Michael&message=Thanks%20for%20all%20the%20fish&memo=OrderId5678';
 
                 const { recipient, amount, splToken, reference, label, message, memo } = parseURL(
-                    url
+                    url,
                 ) as TransferRequestURL;
 
-                expect(recipient.equals(new PublicKey('mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN'))).toBe(true);
-                expect(amount!.eq(new BigNumber('0.000000001'))).toBe(true);
+                expect(recipient).toBe('mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN');
+                expect(amount).toBe(0.000000001);
                 expect(splToken).toBeUndefined();
                 expect(reference).toHaveLength(1);
-                expect(reference![0]!.equals(new PublicKey('82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny'))).toBe(true);
+                expect(reference![0]).toBe('82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny');
                 expect(label).toBe('Michael');
                 expect(message).toBe('Thanks for all the fish');
                 expect(memo).toBe('OrderId5678');
@@ -29,12 +29,12 @@ describe('parseURL', () => {
                     'solana:mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN?amount=1.01&spl-token=82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny&label=Michael&message=Thanks%20for%20all%20the%20fish&memo=OrderId5678';
 
                 const { recipient, amount, splToken, reference, label, message, memo } = parseURL(
-                    url
+                    url,
                 ) as TransferRequestURL;
 
-                expect(recipient.equals(new PublicKey('mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN'))).toBe(true);
-                expect(amount!.eq(new BigNumber('1.01'))).toBe(true);
-                expect(splToken!.equals(new PublicKey('82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny'))).toBe(true);
+                expect(recipient).toBe('mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN');
+                expect(amount).toBe(1.01);
+                expect(splToken).toBe('82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny');
                 expect(reference).toBeUndefined();
                 expect(label).toBe('Michael');
                 expect(message).toBe('Thanks for all the fish');
@@ -46,14 +46,14 @@ describe('parseURL', () => {
                     'solana:mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN?reference=82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny&label=Michael&message=Thanks%20for%20all%20the%20fish&memo=OrderId5678';
 
                 const { recipient, amount, splToken, reference, label, message, memo } = parseURL(
-                    url
+                    url,
                 ) as TransferRequestURL;
 
-                expect(recipient.equals(new PublicKey('mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN'))).toBe(true);
+                expect(recipient).toBe('mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN');
                 expect(amount).toBeUndefined();
                 expect(splToken).toBeUndefined();
                 expect(reference).toHaveLength(1);
-                expect(reference![0]!.equals(new PublicKey('82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny'))).toBe(true);
+                expect(reference![0]).toBe('82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny');
                 expect(label).toBe('Michael');
                 expect(message).toBe('Thanks for all the fish');
                 expect(memo).toBe('OrderId5678');
@@ -77,7 +77,7 @@ describe('parseURL', () => {
             expect(() => parseURL(url)).toThrow('recipient invalid');
         });
 
-        it.each([['1milliondollars'], [-0.1], [-100]])('throws an error on invalid amount: %p', (amount) => {
+        it.each([['1milliondollars'], [-0.1], [-100]])('throws an error on invalid amount: %p', amount => {
             const url = `solana:mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN?amount=${amount}`;
 
             expect(() => parseURL(url)).toThrow('amount invalid');

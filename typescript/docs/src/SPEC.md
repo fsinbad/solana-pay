@@ -8,7 +8,7 @@ slug: /spec
 ## Summary
 A standard protocol to encode Solana transaction requests within URLs to enable payments and other use cases.
 
-Rough consensus on this spec has been reached, and implementations exist in Phantom, FTX, and Slope.
+Rough consensus on this spec has been reached, and implementations exist in several wallets including Phantom.
 
 This standard draws inspiration from [BIP 21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki) and [EIP 681](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-681.md).
 
@@ -161,21 +161,21 @@ The wallet must handle HTTP [client error](https://developer.mozilla.org/en-US/d
 {"transaction":"<transaction>"}
 ```
 
-The `<transaction>` value must be a base64-encoded [serialized transaction](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#serialize). The wallet must base64-decode the transaction and [deserialize it](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#from).
+The `<transaction>` value must be a base64-encoded serialized transaction. The wallet must base64-decode and deserialize the transaction.
 
 The application may respond with a partially or fully signed transaction. The wallet must validate the transaction as **untrusted**.
 
-If the transaction [`signatures`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#signatures) are empty:
-- The application should set the [`feePayer`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#feePayer) to the `account` in the request, or the zero value (`new PublicKey(0)` or `new PublicKey("11111111111111111111111111111111")`).
-- The application should set the [`recentBlockhash`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#recentBlockhash) to the [latest blockhash](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Connection.html#getLatestBlockhash), or the zero value (`new PublicKey(0).toBase58()` or `"11111111111111111111111111111111"`).
-- The wallet must ignore the [`feePayer`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#feePayer) in the transaction and set the `feePayer` to the `account` in the request.
-- The wallet must ignore the [`recentBlockhash`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#recentBlockhash) in the transaction and set the `recentBlockhash` to the [latest blockhash](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Connection.html#getLatestBlockhash).
+If the transaction signatures are empty:
+- The application should set the fee payer to the `account` in the request, or the zero value (`"11111111111111111111111111111111"`).
+- The application should set the recent blockhash to the latest blockhash, or the zero value (`"11111111111111111111111111111111"`).
+- The wallet must ignore the fee payer in the transaction and set the fee payer to the `account` in the request.
+- The wallet must ignore the recent blockhash in the transaction and set the recent blockhash to the latest blockhash.
 
-If the transaction [`signatures`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#signatures) are nonempty:
-- The application must set the [`feePayer`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#feePayer) to the [public key of the first signature](https://solana-foundation.github.io/solana-web3.js/v1.x/modules.html#SignaturePubkeyPair).
-- The application must set the [`recentBlockhash`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#recentBlockhash) to the [latest blockhash](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Connection.html#getLatestBlockhash).
+If the transaction signatures are nonempty:
+- The application must set the fee payer to the public key of the first signature.
+- The application must set the recent blockhash to the latest blockhash.
 - The application must serialize and deserialize the transaction before signing it. This ensures consistent ordering of the account keys, as a workaround for [this issue](https://github.com/solana-labs/solana/issues/21722).
-- The wallet must not set the  [`feePayer`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#feePayer) and [`recentBlockhash`](https://solana-foundation.github.io/solana-web3.js/v1.x/classes/Transaction.html#recentBlockhash).
+- The wallet must not set the fee payer and recent blockhash.
 - The wallet must verify the signatures, and if any are invalid, the wallet must reject the transaction as **malformed**.
 
 The wallet must only sign the transaction with the `account` in the request, and must do so only if a signature for the `account` in the request is expected.
@@ -255,4 +255,4 @@ Additional formats and fields may be incorporated into this specification to ena
 
 Please open a Github issue to propose changes to the specification in order to solicit feedback from application and wallet developers.
 
-[An actual example of such a proposal.](https://github.com/solana-labs/solana-pay/issues/26)
+[An actual example of such a proposal.](https://github.com/solana-foundation/pay/issues/26)

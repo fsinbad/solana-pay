@@ -13,16 +13,8 @@ This guide walks through an **example** implementation for wallet providers. The
 
 Install the packages and import them in your code.
 
-**npm**
-
-```shell=
-npm install @solana/pay @solana/web3.js@1 --save
-```
-
-**yarn**
-
-```shell=
-yarn add @solana/pay @solana/web3.js@1
+```shell
+pnpm add @solana/pay
 ```
 
 ## 2. Parse payment request link
@@ -35,7 +27,12 @@ As a wallet provider, you will have to parse the received URL to extract the par
 <br/>
 
 ```ts
-import { parseURL } from '@solana/pay';
+import { createWalletClient, type TransferRequestURL } from '@solana/pay';
+
+const wallet = createWalletClient({
+    rpcUrl: 'https://api.devnet.solana.com',
+    payer: walletSigner,
+});
 
 /**
  * For example only
@@ -45,7 +42,7 @@ import { parseURL } from '@solana/pay';
  */
 const url =
     'solana:mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN?amount=0.01&reference=82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny&label=Michael&message=Thanks%20for%20all%20the%20fish&memo=OrderId5678';
-const { recipient, amount, splToken, reference, label, message, memo } = parseURL(url);
+const { recipient, amount, splToken, reference, label, message, memo } = wallet.pay.parseURL(url) as TransferRequestURL;
 ```
 
 See [full code snippet][9]
@@ -54,9 +51,7 @@ See [full code snippet][9]
 
 ## 3. Create transaction
 
-Use the `createTransaction` function to create a transaction with the parameters from the `parseURL` function with an additional `payer`.
-
-The `payer` **should** be the public key of the current users' wallet.
+Use `createTransfer` to create transfer instructions from the parsed URL parameters. The wallet client already knows the payer from its configuration.
 
 <details>
     <summary>Create transaction reference implementation</summary>
@@ -64,17 +59,21 @@ The `payer` **should** be the public key of the current users' wallet.
 <br/>
 
 ```typescript
-import { parseURL, createTransaction } from '@solana/pay';
+import { createWalletClient, type TransferRequestURL } from '@solana/pay';
+
+const wallet = createWalletClient({
+    rpcUrl: 'https://api.devnet.solana.com',
+    payer: walletSigner,
+});
 
 const url =
     'solana:mvines9iiHiQTysrwkJjGf2gb9Ex9jXJX8ns3qwf2kN?amount=0.01&reference=82ZJ7nbGpixjeDCmEhUcmwXYfvurzAgGdtSMuHnUgyny&label=Michael&message=Thanks%20for%20all%20the%20fish&memo=OrderId5678';
-const { recipient, amount, splToken, reference, label, message, memo } = parseURL(url);
+const { recipient, amount, splToken, reference, label, message, memo } = wallet.pay.parseURL(url) as TransferRequestURL;
 
 /**
- * Create the transaction with the parameters decoded from the URL
+ * Create the transfer instructions from the parsed URL parameters
  */
-const payer = CUSTOMER_WALLET.publicKey;
-const tx = await createTransfer(connection, payer, { recipient, amount, reference, memo });
+const instructions = await wallet.pay.createTransfer({ recipient, amount: amount!, reference, memo });
 ```
 
 See [full code snippet][10]
@@ -104,29 +103,30 @@ This transaction **should** represent the original intent of the payment request
 
 ## 4. Complete transaction
 
-With the transaction formed. The user must be prompted to approve the transaction.
+With the instructions created, the user must be prompted to approve the transaction.
 
 The `label` and `message` **should** be shown to the user, as it gives added context to the user on the transaction.
 
 <details>
     <summary>
-        Finally, use <code>sendAndConfirmTransaction</code> to complete the transaction.
+        Use the wallet client's <code>sendTransaction</code> to send the instructions. The client handles signing, blockhash, and confirmation.
     </summary>
 
 ```typescript
-const { recipient, message, memo, amount, reference, label } = parseURL(url);
+const { recipient, message, memo, amount, reference, label } = wallet.pay.parseURL(url) as TransferRequestURL;
 console.log('label: ', label);
 console.log('message: ', message);
 
 /**
- * Create the transfer with the parameters decoded from the URL
+ * Create the transfer instructions from the parsed URL parameters
  */
-const tx = await createTransfer(connection, payer, { recipient, amount, reference, memo });
+const instructions = await wallet.pay.createTransfer({ recipient, amount: amount!, reference, memo });
 
 /**
  * Send the transaction to the network
+ * The wallet client handles signing, blockhash, and confirmation.
  */
-sendAndConfirmTransaction(connection, tx, [CUSTOMER_WALLET]);
+await wallet.sendTransaction(instructions);
 ```
 
 See [full code snippet][11]
@@ -143,6 +143,6 @@ URLs can be embedded in the environment in web pages, QR codes, NFC tags and pot
 
 <!-- References -->
 
-[9]: https://github.com/solana-labs/solana-pay/blob/master/core/example/payment-flow-merchant/simulateWalletInteraction.ts#L13
-[10]: https://github.com/solana-labs/solana-pay/blob/master/core/example/payment-flow-merchant/simulateWalletInteraction.ts#L27
-[11]: https://github.com/solana-labs/solana-pay/blob/master/core/example/payment-flow-merchant/simulateWalletInteraction.ts#L35
+[9]: https://github.com/solana-foundation/pay/blob/main/typescript/core/example/index.ts
+[10]: https://github.com/solana-foundation/pay/blob/main/typescript/core/example/index.ts
+[11]: https://github.com/solana-foundation/pay/blob/main/typescript/core/example/index.ts

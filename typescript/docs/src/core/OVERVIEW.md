@@ -11,6 +11,61 @@ slug: /core/overview
 
 Businesses and developers can use Solana Pay to accept payments in SOL or any SPL token without intermediaries. It offers frictionless and portable integration options like payment links, pay now buttons or QR codes on your app, dApp, website, blog, and so much more.
 
+## Installation
+
+```shell
+pnpm add @solana/pay
+```
+
+## Quick Start
+
+The library provides role-specific clients so each side of a payment only has access to what it needs.
+
+**Merchant** (no signer needed) — encode payment URLs, generate QR codes, find and validate payments:
+
+```typescript
+import { address } from '@solana/kit';
+import { createMerchantClient } from '@solana/pay';
+
+const merchant = createMerchantClient({
+    rpcUrl: 'https://api.mainnet-beta.solana.com',
+});
+
+const url = merchant.pay.encodeURL({
+    recipient: address('MERCHANT_WALLET'),
+    amount: 1.5,
+    label: 'My Store',
+});
+
+const qrCode = merchant.pay.createQR(url);
+```
+
+**Wallet** (signer required) — parse URLs, create transfers, send transactions:
+
+```typescript
+import { createWalletClient } from '@solana/pay';
+
+const wallet = createWalletClient({
+    rpcUrl: 'https://api.mainnet-beta.solana.com',
+    payer: walletSigner,
+});
+
+const parsed = wallet.pay.parseURL(url);
+const instructions = await wallet.pay.createTransfer({ recipient, amount });
+await wallet.sendTransaction(instructions);
+```
+
+**Combined** — if you need both merchant and wallet methods in one client:
+
+```typescript
+import { createSolanaPayClient } from '@solana/pay';
+
+const client = createSolanaPayClient({
+    rpcUrl: 'https://api.mainnet-beta.solana.com',
+    payer: walletSigner,
+});
+```
+
 ## Getting Started
 
 Learn how to integrate Solana Pay in your website, application or wallet.

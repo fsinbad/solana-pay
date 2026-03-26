@@ -25,39 +25,19 @@ The Solana blockchain confirms transactions in less than a second and costs on a
 ## How to use Solana Pay
 
 ### Accept payments in your web app
-Use the [`@solana/pay` JavaScript SDK](https://github.com/solana-labs/solana-pay/tree/master/core) to start accepting payments in your app today.
+Use the [`@solana/pay` JavaScript SDK](https://github.com/solana-foundation/pay/tree/main/typescript/core) to start accepting payments in your app today.
 
 ### Accept payments in person
-Run the open-source [Solana Pay Point of Sale app](https://github.com/solana-labs/solana-pay/tree/master/examples/point-of-sale) to start accepting payments in-person.
+Run the open-source [Solana Pay Point of Sale app](https://github.com/solana-foundation/pay/tree/main/typescript/examples/point-of-sale) to start accepting payments in-person.
 
 ## Getting Involved
 
 Solana Pay is an open standard to facilitate commerce on Solana. We are looking for more contributors to help develop the ecosystem. Here are a few ideas if you're looking to get involved.
 
-### Hackathon Projects
-
-The [Solana Grizzlython Hackathon](https://solana.com/grizzlython) is happening right now. There's a dedicated Payments track, presented by Stripe.
-
-Here are some [Solana Pay hackathon ideas](https://www.figma.com/community/file/1070574785723157359) to get started thinking about how you can build the future of payments.
-
 ### eCommerce Platform Integrations
 To get as many merchants accepting payments on Solana as possible we need to provide easy ways to set up Solana Pay on all eCommerce platforms.
 
-Solana Labs has started a reference implementation for Shopify which you can see [here](https://github.com/solana-labs/solana-pay/blob/shopify/shopify) to get a sense of how this might work.
-
-Here are some of the top eCommerce platforms that we're looking to integrate to:
-
-* WooCommerce
-* Magento
-* BigCommerce
-* Wix
-* Squarespace
-
-### Other possible projects
-* Mobile SDKs
-* Checkout UX Components
-
-Do you have another idea? Feel free to open an issue to discuss it with the community.
+Have an idea? Feel free to open an [issue](https://github.com/solana-foundation/pay/issues) to discuss it with the community.
 
 ## License
 

@@ -23,16 +23,8 @@ One way to do both is to use Coinbase, which will provide a native SOL deposit a
 
 Install the packages and import them in your code.
 
-**npm**
-
 ```shell
-npm install @solana/pay @solana/web3.js@1 bignumber.js --save
-```
-
-**yarn**
-
-```shell
-yarn add @solana/pay @solana/web3.js@1 bignumber.js
+pnpm add @solana/pay
 ```
 
 ### 1.1 Import necessary modules
@@ -40,18 +32,17 @@ yarn add @solana/pay @solana/web3.js@1 bignumber.js
 Import the modules used to work with Solana Pay.
 
 ```typescript
-import { Cluster, clusterApiUrl, Connection, PublicKey } from '@solana/web3.js';
-import { encodeURL, createQR } from '@solana/pay';
-import BigNumber from 'bignumber.js';
+import { address, generateKeyPairSigner } from '@solana/kit';
+import { createMerchantClient } from '@solana/pay';
 ```
 
-### 1.2 Establish a connection
+### 1.2 Create a merchant client
 
-When working on Solana, you will need to connect to the network. For our example, we will connect to `devnet`.
+The merchant client provides all the methods you need to encode payment URLs, generate QR codes, and find/validate payments. No signer is required.
 
 <details open>
     <summary>
-        Establish a connection to the <code>devnet</code> network
+        Create a merchant client connected to <code>devnet</code>
     </summary>
 
 <br/>
@@ -61,9 +52,11 @@ async function main() {
     // Variable to keep state of the payment status
     let paymentStatus: string;
 
-    // Connecting to devnet for this example
-    console.log('1. ✅ Establish connection to the network');
-    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    // Create a merchant client connected to devnet
+    console.log('1. Establish connection to the network');
+    const merchant = createMerchantClient({
+        rpcUrl: 'https://api.devnet.solana.com',
+    });
 }
 ```
 
@@ -92,10 +85,11 @@ Solana Pay uses a [standard URL scheme](../../SPEC.md) across wallets for native
  * and will be used to find and validate the payment in the future.
  *
  */
-console.log('2. 🛍 Simulate a customer checkout \n');
-const recipient = new PublicKey('MERCHANT_WALLET');
-const amount = new BigNumber(20);
-const reference = new Keypair().publicKey;
+console.log('2. Simulate a customer checkout \n');
+const recipient = address('MERCHANT_WALLET');
+const amount = 20;
+const referenceSigner = await generateKeyPairSigner();
+const reference = referenceSigner.address;
 const label = 'Jungle Cats store';
 const message = 'Jungle Cats store - your order - #001234';
 const memo = 'JC#4098';
@@ -106,8 +100,8 @@ const memo = 'JC#4098';
  * Solana Pay uses a standard URL scheme across wallets for native SOL and SPL Token payments.
  * Several parameters are encoded within the link representing an intent to collect payment from a customer.
  */
-console.log('3. 💰 Create a payment request link \n');
-const url = encodeURL({ recipient, amount, reference, label, message, memo });
+console.log('3. Create a payment request link \n');
+const url = merchant.pay.encodeURL({ recipient, amount, reference, label, message, memo });
 ```
 
 See [full code snippet][6]
@@ -116,7 +110,7 @@ See [full code snippet][6]
 
 ### Optional. SPL token transfer
 
-For SPL Token transfers, use the `spl-token` parameter. The `spl-token` is the mint address of the SPL token.
+For SPL Token transfers, use the `splToken` parameter. The `splToken` is the mint address of the SPL token.
 
 <details>
     <summary>See code snippet</summary>
@@ -125,8 +119,8 @@ For SPL Token transfers, use the `spl-token` parameter. The `spl-token` is the m
 /**
  * Simulate a checkout experience with an SPL token
  */
-console.log('2. 🛍 Simulate a customer checkout \n');
-const splToken = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+console.log('2. Simulate a customer checkout \n');
+const splToken = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 
 /**
  * Create a payment request link
@@ -134,8 +128,8 @@ const splToken = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
  * Solana Pay uses a standard URL scheme across wallets for native SOL and SPL Token payments.
  * Several parameters are encoded within the link representing an intent to collect payment from a customer.
  */
-console.log('3. 💰 Create a payment request link \n');
-const url = encodeURL({
+console.log('3. Create a payment request link \n');
+const url = merchant.pay.encodeURL({
     recipient,
     amount,
     splToken,
@@ -160,17 +154,11 @@ Now that you've created a payment link, you need a way to show it to your custom
 ```typescript
 // -- snippet -- //
 
-/**
- * Create a payment request link
- *
- * Solana Pay uses a standard URL scheme across wallets for native SOL and SPL Token payments.
- * Several parameters are encoded within the link representing an intent to collect payment from a customer.
- */
-console.log('3. 💰 Create a payment request link \n');
-const url = encodeURL({ recipient, amount, reference, label, message, memo });
+console.log('3. Create a payment request link \n');
+const url = merchant.pay.encodeURL({ recipient, amount, reference, label, message, memo });
 
 // encode URL in QR code
-const qrCode = createQR(url);
+const qrCode = merchant.pay.createQR(url);
 ```
 
 </details>
@@ -191,11 +179,11 @@ The QR code needs to be visible on your payment page.
 ```typescript
 // -- snippet -- //
 
-console.log('3. 💰 Create a payment request link \n');
-const url = encodeURL({ recipient, amount, reference, label, message, memo });
+console.log('3. Create a payment request link \n');
+const url = merchant.pay.encodeURL({ recipient, amount, reference, label, message, memo });
 
 // encode URL in QR code
-const qrCode = createQR(url);
+const qrCode = merchant.pay.createQR(url);
 
 // get a handle of the element
 const element = document.getElementById('qr-code');
@@ -225,17 +213,6 @@ When a customer approves the payment request in their wallet, this transaction e
 // -- snippet -- //
 
 /**
- * Simulate wallet interaction
- *
- * This is only for example purposes. This interaction will be handled by a wallet provider
- */
-console.log('4. 🔐 Simulate wallet interaction \n');
-simulateWalletInteraction(connection, url);
-
-// Update payment status
-paymentStatus = 'pending';
-
-/**
  * Wait for payment to be confirmed
  *
  * When a customer approves the payment request in their wallet, this transaction exists on-chain.
@@ -243,13 +220,13 @@ paymentStatus = 'pending';
  * Important to note that we can only find the transaction when it's **confirmed**
  */
 console.log('\n5. Find the transaction');
-const signatureInfo = await findReference(connection, reference, { finality: 'confirmed' });
+const signatureInfo = await merchant.pay.findReference(reference, { commitment: 'confirmed' });
 
 // Update payment status
 paymentStatus = 'confirmed';
 ```
 
-**Note**: The `findReference` function uses `confirmed` as the default finality value. This can, on rare occasions, result in a transaction that is not fully complete. For full finality, use `finalized`. This can result in slower transaction completion.
+**Note**: The `findReference` function uses `confirmed` as the default commitment value. This can, on rare occasions, result in a transaction that is not fully complete. For full finality, use `finalized`. This can result in slower transaction completion.
 
 See [full code snippet][7]
 
@@ -270,7 +247,9 @@ If a transaction with the given reference can't be found, the `findReference` fu
 ```typescript
 // -- snippet -- //
 
-let signatureInfo: ConfirmedSignatureInfo;
+import { FindReferenceError } from '@solana/pay';
+
+let signatureInfo;
 
 return new Promise((resolve, reject) => {
     /**
@@ -287,8 +266,8 @@ return new Promise((resolve, reject) => {
     const interval = setInterval(async () => {
         console.log('Checking for transaction...', count);
         try {
-            signatureInfo = await findReference(connection, reference, { finality: 'confirmed' });
-            console.log('\n 🖌  Signature found: ', signatureInfo.signature);
+            signatureInfo = await merchant.pay.findReference(reference, { commitment: 'confirmed' });
+            console.log('\n Signature found: ', signatureInfo.signature);
             clearInterval(interval);
             resolve(signatureInfo);
         } catch (error: any) {
@@ -305,6 +284,15 @@ return new Promise((resolve, reject) => {
 See [full code snippet][7]
 
 </details>
+
+**Alternative: WebSocket subscription**
+
+Instead of polling, you can use `watchReference` to subscribe to transaction notifications via WebSocket:
+
+```typescript
+const result = await merchant.pay.watchReference(reference, { commitment: 'confirmed' });
+console.log('Payment received:', result.signature);
+```
 
 ### 4.2 Validating the transaction
 
@@ -327,17 +315,17 @@ Once the `findReference` function returns a signature, it confirms that a transa
  * `validateTransfer` allows you to validate that the transaction signature
  * found matches the transaction that you expected.
  */
-console.log('\n6. 🔗 Validate transaction \n');
+console.log('\n6. Validate transaction \n');
 
 try {
-    await validateTransfer(connection, signature, { recipient: MERCHANT_WALLET, amount });
+    await merchant.pay.validateTransfer(signatureInfo.signature, { recipient, amount });
 
     // Update payment status
     paymentStatus = 'validated';
-    console.log('✅ Payment validated');
-    console.log('📦 Ship order to customer');
+    console.log('Payment validated');
+    console.log('Ship order to customer');
 } catch (error) {
-    console.error('❌ Payment failed', error);
+    console.error('Payment failed', error);
 }
 ```
 
@@ -365,11 +353,11 @@ The steps outlined above prevents:
 
 <!-- References -->
 
-[1]: https://github.com/solana-labs/qr-code-styling
+[1]: https://github.com/nickvdyck/qr-code-styling
 [2]: https://spl.solana.com/memo
 [3]: https://github.com/solana-labs/solana/issues/19535
-[4]: https://github.com/solana-labs/solana-pay/tree/master/examples/point-of-sale
-[5]: https://github.com/solana-labs/solana-pay/tree/master/core/example/payment-flow-merchant
-[6]: https://github.com/solana-labs/solana-pay/blob/master/core/example/payment-flow-merchant/simulateCheckout.ts
-[7]: https://github.com/solana-labs/solana-pay/blob/master/core/example/payment-flow-merchant/main.ts#L61
-[8]: https://github.com/solana-labs/solana-pay/blob/master/core/example/payment-flow-merchant/main.ts#L105
+[4]: https://github.com/solana-foundation/pay/tree/main/typescript/examples/point-of-sale
+[5]: https://github.com/solana-foundation/pay/tree/main/typescript/core/example
+[6]: https://github.com/solana-foundation/pay/blob/main/typescript/core/example/index.ts
+[7]: https://github.com/solana-foundation/pay/blob/main/typescript/core/example/index.ts
+[8]: https://github.com/solana-foundation/pay/blob/main/typescript/core/example/index.ts

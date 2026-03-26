@@ -16,8 +16,8 @@ const config = {
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
     favicon: 'img/favicon.ico',
-    organizationName: 'solana-labs', // Usually your GitHub org/user name.
-    projectName: 'solana-pay', // Usually your repo name.
+    organizationName: 'solana-foundation', // Usually your GitHub org/user name.
+    projectName: 'pay', // Usually your repo name.
 
     presets: [
         [
@@ -29,7 +29,7 @@ const config = {
                     sidebarCollapsed: false,
                     path: 'src',
                     routeBasePath: '/',
-                    editUrl: 'https://github.com/solana-labs/solana-pay/tree/master/docs',
+                    editUrl: 'https://github.com/solana-foundation/pay/tree/main/typescript/docs',
                 },
                 theme: {
                     customCss: require.resolve('./src/css/custom.css'),
@@ -63,7 +63,7 @@ const config = {
                 },
                 items: [
                     {
-                        href: 'https://github.com/solana-labs/solana-pay',
+                        href: 'https://github.com/solana-foundation/pay',
                         label: 'GitHub',
                         position: 'right',
                     },
@@ -99,7 +99,7 @@ const config = {
                         items: [
                             {
                                 label: 'GitHub',
-                                href: 'https://github.com/solana-labs/solana-pay',
+                                href: 'https://github.com/solana-foundation/pay',
                             },
                         ],
                     },

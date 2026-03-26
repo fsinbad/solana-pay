@@ -1,4 +1,5 @@
 export * from './constants.js';
+export * from './client.js';
 export * from './createQR.js';
 export * from './createTransfer.js';
 export * from './encodeURL.js';
@@ -7,3 +8,6 @@ export * from './findReference.js';
 export * from './parseURL.js';
 export * from './types.js';
 export * from './validateTransfer.js';
+export * from './watchReference.js';
+export * from './plugins/merchant.js';
+export * from './plugins/wallet.js';

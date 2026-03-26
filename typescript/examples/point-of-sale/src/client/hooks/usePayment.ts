@@ -1,5 +1,4 @@
-import { PublicKey, TransactionSignature } from '@solana/web3.js';
-import BigNumber from 'bignumber.js';
+import type { Address, Signature } from '@solana/kit';
 import { createContext, useContext } from 'react';
 import { Confirmations } from '../types';
 
@@ -13,12 +12,12 @@ export enum PaymentStatus {
 }
 
 export interface PaymentContextState {
-    amount: BigNumber | undefined;
-    setAmount(amount: BigNumber | undefined): void;
+    amount: number | undefined;
+    setAmount(amount: number | undefined): void;
     memo: string | undefined;
     setMemo(memo: string | undefined): void;
-    reference: PublicKey | undefined;
-    signature: TransactionSignature | undefined;
+    reference: Address | undefined;
+    signature: Signature | undefined;
     status: PaymentStatus;
     confirmations: Confirmations;
     progress: number;

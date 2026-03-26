@@ -5,7 +5,7 @@ slug: /core/transaction-request/merchant-integration
 
 This section describes how a merchant can integrate Solana Pay transaction requests into their payments flow.
 
-This guide walks through an example of how you can configure a server to respond to a Solana Pay transaction request to initiate a simple native SOL transfer.
+This guide walks through an example of how you can configure a server to respond to a Solana Pay transaction request to initiate a simple SPL token transfer.
 
 A complete example can be found [here][4].
 
@@ -19,16 +19,8 @@ For this example, we'll be building our server using [NextJS API routes][1]. The
 
 Install Solana Pay libraries to access the API from your application:
 
-**npm**
-
 ```shell
-npm install @solana/pay @solana/web3.js@1 bignumber.js @solana/spl-token --save
-```
-
-**yarn**
-
-```shell
-yarn add @solana/pay @solana/web3.js@1 bignumber.js @solana/spl-token
+pnpm add @solana/pay
 ```
 
 ### 1. Create the handler
@@ -83,38 +75,37 @@ The `GET` endpoint should respond with two properties. `label` describes the sou
 
 The second part of the transaction request spec is the `POST` request.
 
-```javascript
-import { clusterApiUrl, Connection, Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
-import BigNumber from 'bignumber.js';
-import { createTransferCheckedInstruction, getAccount, getAssociatedTokenAddress, getMint } from '@solana/spl-token';
-import { TEN } from '@solana/pay';
+```typescript
+import { address } from '@solana/kit';
+import { createMerchantClient } from '@solana/pay';
+import { getTransferSolInstruction } from '@solana-program/system';
 
-const splToken = new PublicKey(process.env.USDC_MINT);
-const MERCHANT_WALLET = new PublicKey(process.env.MERCHANT_WALLET);
+const MERCHANT_WALLET = address(process.env.MERCHANT_WALLET);
+
+const merchant = createMerchantClient({
+    rpcUrl: 'https://api.mainnet-beta.solana.com',
+});
 
 const post = async (request, response) => {
     // Account provided in the transaction request body by the wallet.
     const accountField = request.body?.account;
     if (!accountField) throw new Error('missing account');
 
-    const sender = new PublicKey(accountField);
+    const sender = address(accountField);
 
-    // create spl transfer instruction
-    const splTransferIx = await createSplTransferIx(sender, connection);
+    // You should always calculate the order total on the server to prevent
+    // people from directly manipulating the amount on the client
+    const lamports = calculateCheckoutAmountInLamports();
 
-    // create the transaction
-    const transaction = new VersionedTransaction(
-        new TransactionMessage({
-            payerKey: sender,
-            recentBlockhash: '11111111111111111111111111111111',
-            // add the instruction to the transaction
-            instructions: [splTransferIx]
-        }).compileToV0Message()
-    )
+    // Build a SOL transfer instruction using the System Program
+    const transferIx = getTransferSolInstruction({
+        source: sender,
+        destination: MERCHANT_WALLET,
+        amount: lamports,
+    });
 
-    const serializedTransaction = transaction.serialize()
-
-    const base64Transaction = Buffer.from(serializedTransaction).toString('base64');
+    // Build and serialize the transaction for the wallet to sign
+    const base64Transaction = merchant.pay.buildTransaction(sender, [transferIx]);
     const message = 'Thank you for your purchase of ExiledApe #518';
 
     response.status(200).send({ transaction: base64Transaction, message });
@@ -143,59 +134,7 @@ The `transaction` that's returned can be -- anything. It doesn't even need to be
 
 </details>
 
-```javascript
-async function createSplTransferIx(sender, connection) {
-    const senderInfo = await connection.getAccountInfo(sender);
-    if (!senderInfo) throw new Error('sender not found');
-
-    // Get the sender's ATA and check that the account exists and can send tokens
-    const senderATA = await getAssociatedTokenAddress(splToken, sender);
-    const senderAccount = await getAccount(connection, senderATA);
-    if (!senderAccount.isInitialized) throw new Error('sender not initialized');
-    if (senderAccount.isFrozen) throw new Error('sender frozen');
-
-    // Get the merchant's ATA and check that the account exists and can receive tokens
-    const merchantATA = await getAssociatedTokenAddress(splToken, MERCHANT_WALLET);
-    const merchantAccount = await getAccount(connection, merchantATA);
-    if (!merchantAccount.isInitialized) throw new Error('merchant not initialized');
-    if (merchantAccount.isFrozen) throw new Error('merchant frozen');
-
-    // Check that the token provided is an initialized mint
-    const mint = await getMint(connection, splToken);
-    if (!mint.isInitialized) throw new Error('mint not initialized');
-
-    // You should always calculate the order total on the server to prevent
-    // people from directly manipulating the amount on the client
-    let amount = calculateCheckoutAmount();
-    amount = amount.times(TEN.pow(mint.decimals)).integerValue(BigNumber.ROUND_FLOOR);
-
-    // Check that the sender has enough tokens
-    const tokens = BigInt(String(amount));
-    if (tokens > senderAccount.amount) throw new Error('insufficient funds');
-
-    // Create an instruction to transfer SPL tokens, asserting the mint and decimals match
-    const splTransferIx = createTransferCheckedInstruction(
-        senderATA,
-        splToken,
-        merchantATA,
-        sender,
-        tokens,
-        mint.decimals
-    );
-
-    // Create a reference that is unique to each checkout session
-    const references = [new Keypair().publicKey];
-
-    // add references to the instruction
-    for (const pubkey of references) {
-        splTransferIx.keys.push({ pubkey, isWritable: false, isSigner: false });
-    }
-
-    return splTransferIx;
-}
-```
-
-For our example, we create a simple transfer for a SPL token, serialize the transaction, and base64 encode it.
+For our example, we build a simple native SOL transfer using `getTransferSolInstruction` from `@solana-program/system`. For SPL token transfers, use `getTransferCheckedInstruction` from `@solana-program/token` instead.
 
 ## Best Practices
 
@@ -213,6 +152,6 @@ We recommend handling a customer session in a secure environment. Building a sec
 <!-- References -->
 
 [1]: https://nextjs.org/docs/api-routes/introduction
-[2]: https://github.com/solana-labs/solana-pay/tree/master/point-of-sale
-[3]: https://github.com/solana-labs/solana-pay/blob/master/SPEC.md#link
-[4]: https://github.com/solana-labs/solana-pay
+[2]: https://github.com/solana-foundation/pay/tree/main/typescript/examples/point-of-sale
+[3]: https://github.com/solana-foundation/pay/blob/main/typescript/spec/SPEC.md#link
+[4]: https://github.com/solana-foundation/pay

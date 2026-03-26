@@ -1,9 +1,8 @@
-import BigNumber from 'bignumber.js';
 import clsx from 'clsx';
 import { formatDistance } from 'date-fns';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfig } from '../../hooks/useConfig';
-import { Transaction, useTransactions } from '../../hooks/useTransactions';
+import { type Transaction, useTransactions } from '../../hooks/useTransactions';
 import { NON_BREAKING_SPACE } from '../../utils/constants';
 import { Amount } from './Amount';
 import css from './Transactions.module.css';
@@ -24,7 +23,7 @@ export const Transactions: FC = () => {
 const Transaction: FC<{ transaction: Transaction }> = ({ transaction }) => {
     const { icon, symbol } = useConfig();
 
-    const amount = useMemo(() => new BigNumber(transaction.amount), [transaction.amount]);
+    const amount = useMemo(() => parseFloat(transaction.amount), [transaction.amount]);
     const signature = useMemo(
         () => transaction.signature.slice(0, 8) + '....' + transaction.signature.slice(-8),
         [transaction.signature]
