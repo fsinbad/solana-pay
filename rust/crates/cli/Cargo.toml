@@ -10,15 +10,18 @@ path = "src/main.rs"
 
 [features]
 default = []
+gcp_kms = ["solana-mpp/gcp_kms"]
 vendored-openssl = ["pay-core/vendored-openssl"]
 
 [dependencies]
-pay-core = { workspace = true }
+axum = { workspace = true }
+pay-core = { workspace = true, features = ["server"] }
 pay-keystore = { workspace = true }
 pay-types = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yml = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 pay-mcp = { workspace = true }
@@ -27,6 +30,7 @@ solana-mpp = { workspace = true }
 tokio = { workspace = true }
 owo-colors = { workspace = true }
 shellexpand = { workspace = true }
+tempfile = { workspace = true }
 ed25519-dalek = { workspace = true }
 rand = { workspace = true }
 bs58 = { workspace = true }
