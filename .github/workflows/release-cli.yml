@@ -127,7 +127,7 @@ jobs:
         with:
           node-version: lts/*
       - name: Build PDB frontend
-        run: cd pdb && pnpm install --frozen-lockfile && pnpm build
+        run: cd ../pdb && pnpm install --frozen-lockfile && pnpm build
 
       - uses: dtolnay/rust-toolchain@stable
         with:
