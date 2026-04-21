@@ -1,6 +1,6 @@
 use owo_colors::OwoColorize;
 
-/// Remove a provider source from the bazaar.
+/// Remove a provider source from the skills catalog.
 #[derive(clap::Args)]
 pub struct RemoveCommand {
     /// Provider source to remove — must match what was added.
@@ -9,21 +9,16 @@ pub struct RemoveCommand {
 
 impl RemoveCommand {
     pub fn run(self) -> pay_core::Result<()> {
-        let mut cfg = pay_core::bazaar::config::BazaarConfig::load()?;
+        let mut cfg = pay_core::skills::config::SkillsConfig::load()?;
         if cfg.remove_source(&self.source) {
             cfg.save()?;
             eprintln!("  {} {}", "Removed:".green(), self.source);
             eprintln!("{}", "  Updating cache...".dimmed());
-            let catalog = pay_core::bazaar::update_bazaar()?;
+            let catalog = pay_core::skills::update_skills()?;
             eprintln!(
-                "  {} {} services, {} endpoints",
+                "  {} {} providers",
                 "Ready:".green(),
-                catalog.services.len(),
-                catalog
-                    .services
-                    .iter()
-                    .map(|s| s.endpoints.len())
-                    .sum::<usize>()
+                catalog.providers.len(),
             );
         } else {
             eprintln!(

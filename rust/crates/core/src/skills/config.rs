@@ -1,7 +1,7 @@
-//! Local bazaar configuration — `~/.config/pay/bazaar.yaml`.
+//! Local skills configuration — `~/.config/pay/skills.yaml`.
 //!
 //! Tracks provider sources (catalog URLs or GitHub repos) and cache
-//! settings. `pay install` / `pay bazaar add` / `pay bazaar remove`
+//! settings. `pay install` / `pay skills add` / `pay skills remove`
 //! mutate this file.
 
 use std::collections::hash_map::DefaultHasher;
@@ -12,18 +12,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result};
 
-const BAZAAR_CONFIG_FILE: &str = "~/.config/pay/bazaar.yaml";
-const BAZAAR_CACHE_DIR: &str = "~/.config/pay/bazaar";
+const SKILLS_CONFIG_FILE: &str = "~/.config/pay/skills.yaml";
+const SKILLS_CACHE_DIR: &str = "~/.config/pay/skills";
 
 /// Default cache TTL in minutes.
 const DEFAULT_TTL_MINUTES: u32 = 30;
 
 /// The default catalog shipped with pay — always present even if the
 /// user hasn't added any sources.
-pub const DEFAULT_SOURCE: &str =
-    "https://storage.googleapis.com/gateway-402-public-assets-sandbox/catalog/google/sandbox.json";
+pub const DEFAULT_SOURCE: &str = "https://storage.googleapis.com/pay-skills/v1/skills.json";
 
-/// A provider source in the bazaar config.
+/// A provider source in the skills catalog config.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Source {
     /// Display name (e.g. "google", "company/apis").
@@ -33,7 +32,7 @@ pub struct Source {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BazaarConfig {
+pub struct SkillsConfig {
     /// Cache time-to-live in minutes.
     #[serde(default = "default_ttl")]
     pub ttl_minutes: u32,
@@ -45,19 +44,19 @@ fn default_ttl() -> u32 {
     DEFAULT_TTL_MINUTES
 }
 
-impl Default for BazaarConfig {
+impl Default for SkillsConfig {
     fn default() -> Self {
         Self {
             ttl_minutes: DEFAULT_TTL_MINUTES,
             sources: vec![Source {
-                name: "google".to_string(),
+                name: "pay-skills".to_string(),
                 url: DEFAULT_SOURCE.to_string(),
             }],
         }
     }
 }
 
-impl BazaarConfig {
+impl SkillsConfig {
     pub fn load() -> Result<Self> {
         let path = config_path();
         if !path.exists()
@@ -130,7 +129,7 @@ impl BazaarConfig {
         let entries = std::fs::read_dir(&dir).ok()?;
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("bazaar-") && name.contains(&hash) && name.ends_with(".json") {
+            if name.starts_with("skills-") && name.contains(&hash) && name.ends_with(".json") {
                 // Check TTL
                 if let Ok(meta) = entry.metadata()
                     && let Ok(modified) = meta.modified()
@@ -155,7 +154,7 @@ impl BazaarConfig {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        dir.join(format!("bazaar-{ts}-{hash}.json"))
+        dir.join(format!("skills-{ts}-{hash}.json"))
     }
 
     /// Clean up old cache files that don't match the current hash.
@@ -165,7 +164,7 @@ impl BazaarConfig {
         if let Ok(entries) = std::fs::read_dir(&dir) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with("bazaar-") && name.ends_with(".json") && !name.contains(&hash) {
+                if name.starts_with("skills-") && name.ends_with(".json") && !name.contains(&hash) {
                     let _ = std::fs::remove_file(entry.path());
                 }
             }
@@ -217,11 +216,11 @@ fn derive_name(source: &str) -> String {
 }
 
 fn config_path() -> PathBuf {
-    PathBuf::from(shellexpand::tilde(BAZAAR_CONFIG_FILE).into_owned())
+    PathBuf::from(shellexpand::tilde(SKILLS_CONFIG_FILE).into_owned())
 }
 
 fn cache_dir() -> PathBuf {
-    PathBuf::from(shellexpand::tilde(BAZAAR_CACHE_DIR).into_owned())
+    PathBuf::from(shellexpand::tilde(SKILLS_CACHE_DIR).into_owned())
 }
 
 #[cfg(test)]
@@ -230,15 +229,15 @@ mod tests {
 
     #[test]
     fn default_has_default_source() {
-        let cfg = BazaarConfig::default();
+        let cfg = SkillsConfig::default();
         assert_eq!(cfg.sources.len(), 1);
-        assert_eq!(cfg.sources[0].name, "google");
-        assert!(cfg.sources[0].url.contains("gateway-402"));
+        assert_eq!(cfg.sources[0].name, "pay-skills");
+        assert!(cfg.sources[0].url.contains("pay-skills"));
     }
 
     #[test]
     fn add_source_deduplicates() {
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         assert!(cfg.add_source("https://example.com/catalog.json"));
         assert!(!cfg.add_source("https://example.com/catalog.json"));
         assert_eq!(cfg.sources.len(), 2);
@@ -246,7 +245,7 @@ mod tests {
 
     #[test]
     fn add_source_resolves_github_shorthand() {
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         cfg.add_source("company/apis");
         let last = cfg.sources.last().unwrap();
         assert_eq!(last.name, "company/apis");
@@ -255,7 +254,7 @@ mod tests {
 
     #[test]
     fn remove_source_by_url() {
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         cfg.add_source("https://example.com/catalog.json");
         assert!(cfg.remove_source("https://example.com/catalog.json"));
         assert!(!cfg.remove_source("https://example.com/catalog.json"));
@@ -263,7 +262,7 @@ mod tests {
 
     #[test]
     fn remove_source_by_name() {
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         cfg.add_source("company/apis");
         assert!(cfg.remove_source("company/apis"));
         assert_eq!(cfg.sources.len(), 1); // only default left
@@ -271,7 +270,7 @@ mod tests {
 
     #[test]
     fn sources_hash_is_deterministic() {
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         cfg.add_source("https://a.com");
         cfg.add_source("https://b.com");
         let h1 = cfg.sources_hash();
@@ -282,8 +281,8 @@ mod tests {
 
     #[test]
     fn sources_hash_changes_on_add() {
-        let cfg1 = BazaarConfig::default();
-        let mut cfg2 = BazaarConfig::default();
+        let cfg1 = SkillsConfig::default();
+        let mut cfg2 = SkillsConfig::default();
         cfg2.add_source("https://new.com");
         assert_ne!(cfg1.sources_hash(), cfg2.sources_hash());
     }
@@ -326,7 +325,7 @@ mod tests {
 
     #[test]
     fn source_urls_returns_all_urls() {
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         cfg.add_source("https://a.com/catalog.json");
         cfg.add_source("https://b.com/catalog.json");
         let urls = cfg.source_urls();
@@ -337,11 +336,11 @@ mod tests {
 
     #[test]
     fn new_cache_path_contains_hash() {
-        let cfg = BazaarConfig::default();
+        let cfg = SkillsConfig::default();
         let hash = cfg.sources_hash();
         let path = cfg.new_cache_path();
         let filename = path.file_name().unwrap().to_string_lossy();
-        assert!(filename.starts_with("bazaar-"));
+        assert!(filename.starts_with("skills-"));
         assert!(filename.contains(&hash));
         assert!(filename.ends_with(".json"));
     }
@@ -349,7 +348,7 @@ mod tests {
     #[test]
     fn valid_cache_path_returns_none_when_no_cache() {
         // With no cache dir, should return None
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         // Add a unique source so hash won't match any existing cache
         cfg.add_source("https://unique-test-source-12345.example.com/catalog.json");
         // valid_cache_path scans the cache dir — with a unique hash it won't find anything
@@ -360,7 +359,7 @@ mod tests {
     #[test]
     fn clean_stale_caches_is_safe_when_dir_missing() {
         // Should not panic when cache dir doesn't exist
-        let mut cfg = BazaarConfig::default();
+        let mut cfg = SkillsConfig::default();
         cfg.add_source("https://nonexistent-test-12345.example.com/catalog.json");
         cfg.clean_stale_caches(); // no-op, no panic
     }

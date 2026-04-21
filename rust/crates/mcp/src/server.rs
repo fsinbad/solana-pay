@@ -123,7 +123,7 @@ Payments are made on Solana (SOL and SPL tokens like USDC).
         Ok(CallToolResult::success(vec![Content::text(response)]))
     }
 
-    // ── Bazaar tools (progressive disclosure) ──────────────────────────────
+    // ── Skills tools (progressive disclosure) ──────────────────────────────
 
     #[tool(
         description = r#"Search for available paid API services and their endpoints.
@@ -133,28 +133,28 @@ complete `url` field — paste it directly into the `curl` tool.
 For BigQuery, the project ID in URLs is `gateway-402`.
 
 Shows top 5 metered + 3 free endpoints per service. Use
-`bazaar_endpoints` for the full list if needed.
+`skills_endpoints` for the full list if needed.
 
 Categories: ai_ml, data, compute, maps, search, translation, productivity
 "#
     )]
-    async fn bazaar_search(
+    async fn skills_search(
         &self,
-        Parameters(params): Parameters<BazaarSearchParams>,
+        Parameters(params): Parameters<SkillsSearchParams>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
-        let catalog = tokio::task::spawn_blocking(pay_core::bazaar::load_bazaar)
+        let catalog = tokio::task::spawn_blocking(pay_core::skills::load_skills)
             .await
             .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?
             .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
-        let hits = pay_core::bazaar::search(
+        let hits = pay_core::skills::search(
             &catalog,
             params.query.as_deref(),
             params.category.as_deref(),
         );
 
         // Group and cap per service (same condensed logic as the CLI).
-        let grouped = pay_core::bazaar::group_search_results(&hits);
+        let grouped = pay_core::skills::group_search_results(&hits);
         let condensed: Vec<_> = grouped
             .into_iter()
             .map(|mut g| {
@@ -174,53 +174,97 @@ Categories: ai_ml, data, compute, maps, search, translation, productivity
         Ok(CallToolResult::success(vec![Content::text(json)]))
     }
 
-    #[tool(description = r#"List all endpoints for a specific API service.
+    #[tool(
+        description = r#"List all available paid API services with their top endpoints in a single call.
 
-Each endpoint includes a complete `url` field — paste it directly into
-the `curl` tool. No URL assembly needed. Use after `bazaar_search` to
-get the exact endpoints you need.
-"#)]
-    async fn bazaar_endpoints(
-        &self,
-        Parameters(params): Parameters<BazaarEndpointsParams>,
-    ) -> Result<CallToolResult, rmcp::ErrorData> {
-        let catalog = tokio::task::spawn_blocking(pay_core::bazaar::load_bazaar)
+Returns every service with up to 3 metered endpoints each. Use this
+instead of multiple `skills_search` calls when you want a broad overview
+of what's available. Drill into a specific service with `skills_endpoints`.
+"#
+    )]
+    async fn skills_list(&self) -> Result<CallToolResult, rmcp::ErrorData> {
+        let catalog = tokio::task::spawn_blocking(pay_core::skills::load_skills)
             .await
             .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?
             .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
-        let svc = catalog
-            .services
-            .iter()
-            .find(|s| s.name.eq_ignore_ascii_case(&params.service))
-            .ok_or_else(|| {
-                rmcp::ErrorData::invalid_params(
-                    format!("Service `{}` not found", params.service),
-                    None,
-                )
-            })?;
+        let hits = pay_core::skills::search(&catalog, None, None);
+        let grouped = pay_core::skills::group_search_results(&hits);
+        let condensed: Vec<_> = grouped
+            .into_iter()
+            .map(|mut g| {
+                let metered: Vec<_> = g.endpoints.iter().filter(|e| e.metered).cloned().collect();
+                g.endpoints = metered.into_iter().take(3).collect();
+                g
+            })
+            .collect();
 
-        let clean = pay_core::bazaar::SearchResultGroup {
-            service: svc.name.clone(),
-            title: svc.title.clone(),
-            url: svc.service_url.clone(),
-            endpoints: svc
-                .endpoints
-                .iter()
-                .map(|ep| pay_core::bazaar::endpoint_to_hit(&svc.service_url, ep))
-                .collect(),
-        };
-
-        let json = serde_json::to_string_pretty(&clean)
+        let json = serde_json::to_string_pretty(&condensed)
             .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
         Ok(CallToolResult::success(vec![Content::text(json)]))
     }
+
+    #[tool(description = r#"List all endpoints for a specific API service.
+
+Each endpoint includes a complete `url` field — paste it directly into
+the `curl` tool. No URL assembly needed. Use after `skills_search` to
+get the exact endpoints you need.
+"#)]
+    async fn skills_endpoints(
+        &self,
+        Parameters(params): Parameters<SkillsEndpointsParams>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let service_name = params.service.clone();
+        let mut catalog = tokio::task::spawn_blocking(pay_core::skills::load_skills)
+            .await
+            .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?
+            .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
+
+        // Lazy-fetch endpoints if not loaded
+        tokio::task::spawn_blocking(move || {
+            pay_core::skills::ensure_endpoints(&mut catalog, &service_name).map(|()| catalog)
+        })
+        .await
+        .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?
+        .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))
+        .and_then(|catalog| {
+            let svc = catalog
+                .providers
+                .iter()
+                .find(|s| {
+                    s.fqn.eq_ignore_ascii_case(&params.service)
+                        || s.name().eq_ignore_ascii_case(&params.service)
+                })
+                .ok_or_else(|| {
+                    rmcp::ErrorData::invalid_params(
+                        format!("Service `{}` not found", params.service),
+                        None,
+                    )
+                })?;
+
+            let clean = pay_core::skills::SearchResultGroup {
+                service: svc.fqn.clone(),
+                title: svc.title.clone(),
+                url: svc.service_url.clone(),
+                endpoints: svc
+                    .endpoints
+                    .iter()
+                    .map(|ep| pay_core::skills::endpoint_to_hit(&svc.service_url, ep))
+                    .collect(),
+            };
+
+            let json = serde_json::to_string_pretty(&clean)
+                .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
+
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        })
+    }
 }
 
-/// Parameters for `bazaar_search`.
+/// Parameters for `skills_search`.
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct BazaarSearchParams {
+pub struct SkillsSearchParams {
     /// Keyword to search for (matches service name, title, description).
     #[schemars(description = "Search keyword (e.g. 'bigquery', 'translate', 'vision')")]
     pub query: Option<String>,
@@ -232,10 +276,10 @@ pub struct BazaarSearchParams {
     pub category: Option<String>,
 }
 
-/// Parameters for `bazaar_endpoints`.
+/// Parameters for `skills_endpoints`.
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct BazaarEndpointsParams {
-    /// Service name from bazaar_search results.
+pub struct SkillsEndpointsParams {
+    /// Service name from skills_search results.
     #[schemars(description = "Service name (e.g. 'bigquery', 'translate', 'vision')")]
     pub service: String,
 }

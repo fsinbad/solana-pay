@@ -1,6 +1,8 @@
+pub mod build;
 pub mod endpoints;
 pub mod install;
 pub mod list;
+pub mod provider;
 pub mod remove;
 pub mod search;
 pub mod update;
@@ -8,7 +10,7 @@ pub mod update;
 use clap::Subcommand;
 
 #[derive(Subcommand)]
-pub enum BazaarCommand {
+pub enum SkillsCommand {
     /// Search for API providers and endpoints.
     Search(search::SearchCommand),
     /// List all endpoints for a specific service.
@@ -21,11 +23,18 @@ pub enum BazaarCommand {
     /// List configured provider sources.
     #[command(alias = "ls")]
     List,
-    /// Refresh the local bazaar cache from all sources.
+    /// Refresh the local skills cache from all sources.
     Update,
+    /// Build the skills index from a pay-skills registry directory.
+    Build(build::BuildCommand),
+    /// Manage providers in the registry.
+    Provider {
+        #[command(subcommand)]
+        command: provider::ProviderCommand,
+    },
 }
 
-impl BazaarCommand {
+impl SkillsCommand {
     pub fn run(self) -> pay_core::Result<()> {
         match self {
             Self::Search(cmd) => cmd.run(),
@@ -34,6 +43,8 @@ impl BazaarCommand {
             Self::Remove(cmd) => cmd.run(),
             Self::List => list::run(),
             Self::Update => update::run(),
+            Self::Build(cmd) => cmd.run(),
+            Self::Provider { command } => command.run(),
         }
     }
 }
